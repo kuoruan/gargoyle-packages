@@ -1,0 +1,19 @@
+#!/bin/sh
+
+. /lib/functions.sh
+. /lib/functions/network.sh
+
+sleep 1
+network_find_wan wan_net_name
+
+if [ -z "$wan_net_name" -a "$INTERFACE" = "$wan_net_name" ] ; then
+	if [ -h /etc/rc.d/S50qos_gargoyle ] ; then
+		if [ "$ACTION" = "ifup"  ] ; then
+			/etc/init.d/qos_gargoyle start
+		fi
+	fi
+
+	if [ "$ACTION" = "ifdown" ] ; then
+		/etc/init.d/qos_gargoyle stop
+	fi
+fi

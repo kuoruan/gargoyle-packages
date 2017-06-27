@@ -1,0 +1,39 @@
+--- a/Makefile
++++ b/Makefile
+@@ -21,7 +21,7 @@
+ 	$(CC) $(LDFLAGS) $^ $(TCOBJS) -o $@ $(LDLIBS)
+ 
+ qosmon.o: qosmon.c
+-	$(CC) -D ONLYBG $(CFLAGS) -I $(TCDIR)/include -I $(TCDIR)/tc -c $^ -o $@
++	$(CC) -D ONLYBG -D_GNU_SOURCE $(CFLAGS) -I $(TCDIR)/include -I $(TCDIR)/tc -c $^ -o $@
+ 
+ install: all uninstall
+ 	-mkdir -p $(BINDIR)
+--- a/qosmon.c
++++ b/qosmon.c
+@@ -34,6 +34,8 @@
+ #include <string.h>
+ #include <errno.h>
+ #include <time.h>
++#include <limits.h>
++#include <sys/param.h>
+ 
+ #include "utils.h"
+ #include "tc_util.h"
+@@ -68,6 +70,7 @@
+ #define talk(a,b,c,d,e) rtnl_talk(a,b,c,d,e,NULL,NULL)
+ #endif
+ 
++#define __sighandler_t sighandler_t
+ 
+ /* use_names is required when linking to tc_util.o */
+ bool use_names = false;
+@@ -624,7 +627,7 @@
+     }
+ 
+ 
+-    if (talk(&rth, &req.n, 0, 0, NULL) < 0)
++    if (rtnl_talk(&rth, &req.n, NULL, 0) < 0)
+         return 2;
+ 
+     return 0;
