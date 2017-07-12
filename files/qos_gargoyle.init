@@ -234,8 +234,7 @@ update_markfile()
 
 module_installed()
 {
-	grep -q $1 /proc/modules
-	return $?
+	lsmod | grep -wq "$1"
 }
 
 install_modules()
