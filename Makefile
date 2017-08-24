@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qos-gargoyle
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 PKG_LICENSE:=GPL-3.0+
 PKG_MAINTAINER:=Xingwang Liao <kuoruan@gmail.com>
 
@@ -15,6 +15,7 @@ define Package/qos-gargoyle
 	CATEGORY:=Network
 	TITLE:=A set of QoS scripts
 	DEPENDS:=+tc +ip +kmod-sched +iptables-mod-filter +iptables-mod-ipopt +iptables-mod-imq
+	MAINTAINER:=Xingwang Liao <kuoruan@gmail.com>
 	PKGARCH:=all
 endef
 
@@ -58,10 +59,9 @@ endef
 define Package/qos-gargoyle/prerm
 	#!/bin/sh
 	if [ -z "$${IPKG_INSTROOT}" ]; then
-		$${IPKG_INSTROOT}/etc/init.d/qos_gargoyle stop 2>/dev/null
-		$${IPKG_INSTROOT}/etc/init.d/qos_gargoyle disable 2>/dev/null
+		/etc/init.d/qos_gargoyle stop 2>/dev/null
+		/etc/init.d/qos_gargoyle disable 2>/dev/null
 	fi
-	ls >/dev/null 2>&1
 	exit 0
 endef
 
