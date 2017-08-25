@@ -12,8 +12,8 @@ START=50
 EXTRA_COMMANDS=show
 EXTRA_HELP="	show	Show current Qos configuration (if active)"
 
-. /lib/functions/network.sh
-. /lib/network/config.sh
+. ${IPKG_INSTROOT}/lib/functions/network.sh
+. ${IPKG_INSTROOT}/lib/network/config.sh
 
 config_file_name="qos_gargoyle"
 upload_mask="0x007F"
@@ -64,7 +64,6 @@ load_all_config_sections()
 	local section_type="$2"
 
 	all_config_sections=""
-	section_order=""
 
 	get_section_names()
 	{
@@ -771,5 +770,5 @@ show()
 boot()
 {
 	#Do nothing during init.  Start is called by hotplug.
-	return
+	return 0
 }
