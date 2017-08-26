@@ -145,7 +145,7 @@ apply_all_rules()
 
 		if [ -n "$min_pkt_size" ] || [ -n "$max_pkt_size" ] ; then
 			if [ -z "$min_pkt_size" ] ; then min_pkt_size=0 ; fi
-			if [ -z "$max_pkt_size" ] ; then max_pkt_size=${mtu:-1500} ; fi
+			if [ -z "$max_pkt_size" ] ; then max_pkt_size=1500 ; fi
 			match_str="$match_str -m length --length $min_pkt_size:$max_pkt_size"
 		fi
 
@@ -248,7 +248,7 @@ initialize_qos()
 	# The following packages are required for the modules:
 	module_installed imq && rmmod imq >&- 2>&-
 	insmod imq numdevs=1 hook_chains="INPUT,FORWARD" hook_tables="mangle,mangle" >&- 2>&-
-	ip link set dev imq0 mtu ${mtu:-1500}
+	ip link set dev imq0 mtu 1500
 
 	install_modules cls_fw cls_flow sch_hfsc sch_sfq
 
