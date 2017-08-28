@@ -2,10 +2,7 @@
 
 [ "$ACTION" = "ifup" ] || [ "$ACTION" = "ifdown" ] || exit 0
 
-. /lib/functions.sh
 . /lib/functions/network.sh
-
-sleep 1
 
 wan_net_name=
 network_find_wan wan_net_name

@@ -11,9 +11,6 @@ START=50
 EXTRA_COMMANDS=show
 EXTRA_HELP="	show	Show current Qos configuration (if active)"
 
-. ${IPKG_INSTROOT}/lib/functions/network.sh
-. ${IPKG_INSTROOT}/lib/network/config.sh
-
 config_file_name="qos_gargoyle"
 upload_mask="0x007F"
 download_mask="0x7F00"
@@ -132,7 +129,6 @@ apply_all_rules()
 					if [ -n "$(echo $option_value | grep '-')" ] ; then option_value="$(echo "$option_value" | sed -e 's,-,:,g')" ; fi
 					match_str="$match_str --dport $option_value"
 					need_proto="1"
-
 				;;
 				ndpi)
 					match_str="$match_str -m ndpi --$option_value"
@@ -635,6 +631,8 @@ initialize_qos()
 
 define_interface()
 {
+	. /lib/functions/network.sh
+
 	#Wait for up to 15 seconds for the wan interface to indicate it is up.
 	wan_net_name=
 	network_find_wan wan_net_name
