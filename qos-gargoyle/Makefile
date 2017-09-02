@@ -12,7 +12,8 @@ include $(INCLUDE_DIR)/package.mk
 
 define Package/qos-gargoyle
 	SECTION:=net
-	CATEGORY:=Network
+	CATEGORY:=Gargoyle
+	SUBMENU:=Network
 	TITLE:=A set of QoS scripts
 	DEPENDS:=+tc +ip +kmod-sched +iptables-mod-filter +iptables-mod-ipopt +iptables-mod-imq
 	MAINTAINER:=Xingwang Liao <kuoruan@gmail.com>
