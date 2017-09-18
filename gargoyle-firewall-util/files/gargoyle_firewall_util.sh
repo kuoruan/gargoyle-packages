@@ -1,8 +1,10 @@
+#!/bin/sh
+#
 # Copyright Eric Bishop, 2008-2010
 # This is free software licensed under the terms of the GNU GPL v2.0
 #
 . /lib/functions.sh
-include /lib/network
+. /lib/functions/network.sh
 
 ra_mask="0x0080"
 ra_mark="$ra_mask/$ra_mask"
@@ -43,21 +45,22 @@ mask_to_cidr()
 define_wan_if()
 {
 	if  [ -z "$wan_if" ];  then
-		#Wait for up to 15 seconds for the wan interface to indicate it is up.
+		# Wait for up to 15 seconds for the wan interface to indicate it is up.
+		wan_net_name=""
+		network_find_wan wan_net_name
 		wait_sec=15
-		while [ -z "$(uci -P /var/state get network.wan.up 2>/dev/null)" ] && [ "$wait_sec" -gt 0 ]; do
+		while [ -z "$wan_net_name" ] && [ "$wait_sec" -gt 0 ]; do
 			sleep 1
 			wait_sec=$(($wait_sec - 1))
+			network_find_wan wan_net_name
 		done
 
-		#The interface name will depend on if pppoe is used or not.  If pppoe is used then
-		#the name we are looking for is in network.wan.ifname.  If there is nothing there
-		#use the device named by network.wan.device
-
-		wan_if=$(uci -P /var/state get network.wan.ifname 2>/dev/null)
-		if [ -z "$wan_if" ]; then
-			wan_if=$(uci -P /var/state get network.wan.device 2>/dev/null)
+		if [ -z "$wan_net_name" ]; then
+			echo "Network is not available."
+			exit 1
 		fi
+
+		network_get_device wan_if $wan_net_name
 	fi
 }
 
@@ -75,7 +78,7 @@ insert_remote_accept_rules()
 		ssh_max_attempts=$(( $ssh_max_attempts + 1 ))
 	fi
 
-	#add rules for remote_accepts
+	# add rules for remote_accepts
 	parse_remote_accept_config()
 	{
 		vars="local_port remote_port start_port end_port proto zone"
@@ -95,25 +98,25 @@ insert_remote_accept_rules()
 					remote_port="$local_port"
 				fi
 
-				#Discourage brute force attacks on ssh from the WAN by limiting failed conneciton attempts.
-				#Each attempt gets a maximum of 10 password tries by dropbear.
+				# Discourage brute force attacks on ssh from the WAN by limiting failed conneciton attempts.
+				# Each attempt gets a maximum of 10 password tries by dropbear.
 				if   [ -n "$ssh_max_attempts"  ] && [ "$local_port" = "$ssh_port" ] && [ "$prot" = "tcp" ]; then
 					iptables -t filter -A "input_${zone}_rule" -p "$prot" --dport $ssh_port -m recent --set --name SSH_CHECK
 					iptables -t filter -A "input_${zone}_rule" -m recent --update --seconds 300 --hitcount $ssh_max_attempts --name SSH_CHECK -j DROP
 				fi
 
 				if [ "$remote_port" != "$local_port" ]; then
-					#since we're inserting with -I, insert redirect rule first which will then be hit second, after setting connmark
-					iptables -t nat -I "zone_"$zone"_prerouting" -p "$prot" --dport "$remote_port" -j REDIRECT --to-ports "$local_port"
-					iptables -t nat -I "zone_"$zone"_prerouting" -p "$prot" --dport "$remote_port" -j CONNMARK --set-mark "$ra_mark"
+					# since we're inserting with -I, insert redirect rule first which will then be hit second, after setting connmark
+					iptables -t nat -I "zone_${zone}_prerouting" -p "$prot" --dport "$remote_port" -j REDIRECT --to-ports "$local_port"
+					iptables -t nat -I "zone_${zone}_prerouting" -p "$prot" --dport "$remote_port" -j CONNMARK --set-mark "$ra_mark"
 					iptables -t filter -A "input_${zone}_rule" -p $prot --dport "$local_port" -m connmark --mark "$ra_mark" -j ACCEPT
 				else
-					iptables -t nat -I "zone_"$zone"_prerouting" -p "$prot" --dport "$remote_port" -j REDIRECT --to-ports "$local_port"
+					iptables -t nat -I "zone_${zone}_prerouting" -p "$prot" --dport "$remote_port" -j REDIRECT --to-ports "$local_port"
 					iptables -t filter -A "input_${zone}_rule" -p "$prot" --dport "$local_port" -j ACCEPT
 				fi
 			elif [ -n "$start_port" ] && [ -n "$end_port" ]; then
-				iptables -t nat -I "zone_"$zone"_prerouting" -p "$prot" --dport "$start_port:$end_port" -j REDIRECT
-				iptables -t filter -A "input_${zone}_rule" -p "$prot" --dport "$start_port:$end_port" -j ACCEPT
+				iptables -t nat -I "zone_${zone}_prerouting" -p "$prot" --dport "${start_port}:${end_port}" -j REDIRECT
+				iptables -t filter -A "input_${zone}_rule" -p "$prot" --dport "${start_port}:${end_port}" -j ACCEPT
 			fi
 		done
 	}
@@ -126,15 +129,20 @@ insert_pf_loopback_rules()
 	config_name="firewall"
 	section_type="redirect"
 
-	#Need to always delete the old chains first.
+	# Need to always delete the old chains first.
 	delete_chain_from_table "nat"    "pf_loopback_A"
 	delete_chain_from_table "filter" "pf_loopback_B"
 	delete_chain_from_table "nat"    "pf_loopback_C"
 
 	define_wan_if
 	if [ -z "$wan_if" ]  ; then return ; fi
-	wan_ip=$(uci -p /tmp/state get network.wan.ipaddr)
-	lan_mask=$(uci -p /tmp/state get network.lan.netmask)
+	wan_ip=""
+	network_get_ipaddr wan_ip $wan_net_name
+
+	local lan_if=""
+	lan_mask=""
+	network_get_device lan_if lan
+	__network_ifstatus lan_mask "$lan_if" "['ipv4-address'][0].mask"
 
 	if [ -n "$wan_ip" ] && [ -n "$lan_mask" ]; then
 
@@ -185,7 +193,7 @@ insert_dmz_rule()
 	local config_name="firewall"
 	local section_type="dmz"
 
-	#add rules for remote_accepts
+	# add rules for remote_accepts
 	parse_dmz_config()
 	{
 		vars="to_ip from"
@@ -193,13 +201,14 @@ insert_dmz_rule()
 			config_get $var $1 $var
 		done
 		if [ -n "$from" ]; then
-			from_if=$(uci -q -p /tmp/state get network.$from.ifname)
+			from_if=""
+			network_get_device from_if $from
 		fi
 		# echo "from_if = $from_if"
 		if [ -n "$to_ip" ] && [ -n "$from"  ] && [ -n "$from_if" ]; then
-			iptables -t nat -A "zone_"$from"_prerouting" -i $from_if -j DNAT --to-destination $to_ip
+			iptables -t nat -A "zone_${from}_prerouting" -i $from_if -j DNAT --to-destination $to_ip
 			# echo "iptables -t nat -A "prerouting_"$from -i $from_if -j DNAT --to-destination $to_ip"
-			iptables -t filter -I "zone_"$from"_forward" -d $to_ip -j ACCEPT
+			iptables -t filter -I "zone_${from}_forward" -d $to_ip -j ACCEPT
 		fi
 	}
 	config_load "$config_name"
@@ -246,20 +255,20 @@ insert_restriction_rules()
 		config_get "enabled" "$section" "enabled"
 		if [ -z "$enabled" ]; then enabled="1" ; fi
 		if [ "$enabled" = "1" ] && ( [ "$section_type"  = "restriction_rule" ] || [ "$section_type" = "whitelist_rule" ] ) ; then
-			#convert app_proto && not_app_proto to connmark here
+			# convert app_proto && not_app_proto to connmark here
 			config_get "app_proto" "$section" "app_proto"
 			config_get "not_app_proto" "$section" "not_app_proto"
 
-			if [ -n "$app_proto" ]; then
-				app_proto_connmark=$(cat /etc/l7marker.marks 2>/dev/null | grep $app_proto | awk '{ print $2 ; }' )
-				app_proto_mask=$(cat /etc/l7marker.marks 2>/dev/null | grep $app_proto | awk '{ print $3 ;  }' )
-				uci set "$package_name"."$section".connmark="$app_proto_connmark/$app_proto_mask"
-			fi
-			if [ -n "$not_app_proto" ]; then
-				not_app_proto_connmark=$(cat /etc/l7marker.marks 2>/dev/null | grep "$not_app_proto" | awk '{ print $2 }')
-				not_app_proto_mask=$(cat /etc/l7marker.marks 2>/dev/null | grep "$not_app_proto" | awk '{ print $3 }')
-				uci set "$package_name"."$section".not_connmark="$not_app_proto_connmark/$not_app_proto_mask"
-			fi
+			# if [ -n "$app_proto" ]; then
+			# 	app_proto_connmark=$(cat /etc/l7marker.marks 2>/dev/null | grep $app_proto | awk '{ print $2 ; }' )
+			# 	app_proto_mask=$(cat /etc/l7marker.marks 2>/dev/null | grep $app_proto | awk '{ print $3 ;  }' )
+			# 	uci set "$package_name"."$section".connmark="$app_proto_connmark/$app_proto_mask"
+			# fi
+			# if [ -n "$not_app_proto" ]; then
+			# 	not_app_proto_connmark=$(cat /etc/l7marker.marks 2>/dev/null | grep "$not_app_proto" | awk '{ print $2 }')
+			# 	not_app_proto_mask=$(cat /etc/l7marker.marks 2>/dev/null | grep "$not_app_proto" | awk '{ print $3 }')
+			# 	uci set "$package_name"."$section".not_connmark="$not_app_proto_connmark/$not_app_proto_mask"
+			# fi
 
 			table="filter"
 			chain="egress_restrictions"
@@ -309,8 +318,11 @@ initialize_quotas()
 	if [  -e /tmp/quota_init.lock ]; then return ; fi
 	touch /tmp/quota_init.lock
 
-	lan_mask=$(uci -p /tmp/state get network.lan.netmask)
-	lan_ip=$(uci -p /tmp/state get network.lan.ipaddr)
+	local lan_if=""
+	lan_subnet=""
+	network_get_device lan_if lan
+	network_get_subnet lan_subnet $lan_if
+
 	full_qos_enabled=$(ls /etc/rc.d/*qos_gargoyle 2>/dev/null)
 
 	if [ -n "$full_qos_enabled" ]; then
@@ -321,23 +333,24 @@ initialize_quotas()
 		fi
 	fi
 
-
 	# restore_quotas does the hard work of building quota chains & rebuilding crontab file to do backups
 	#
 	# this initializes qos functions ONLY if we have quotas that
 	# have up and down speeds defined for when quota is exceeded
 	# and full qos is not enabled
 	if [ -z "$full_qos_enabled" ]; then
-		restore_quotas    -w $wan_if -d $death_mark -m $death_mask -s "$lan_ip/$lan_mask" -c "0 0,4,8,12,16,20 * * * /usr/bin/backup_quotas >/dev/null 2>&1"
+		restore_quotas    -w $wan_if -d $death_mark -m $death_mask -s "$lan_subnet" -c \
+			"0 0,4,8,12,16,20 * * * /usr/bin/backup_quotas >/dev/null 2>&1"
 		initialize_quota_qos
 	else
-		restore_quotas -q -w $wan_if -d $death_mark -m $death_mask -s "$lan_ip/$lan_mask" -c "0 0,4,8,12,16,20 * * * /usr/bin/backup_quotas >/dev/null 2>&1"
+		restore_quotas -q -w $wan_if -d $death_mark -m $death_mask -s "$lan_subnet" -c \
+			"0 0,4,8,12,16,20 * * * /usr/bin/backup_quotas >/dev/null 2>&1"
 		cleanup_old_quota_qos
 	fi
 
-	#enable cron, but only restart cron if it is currently running
-	#since we initialize this before cron, this will
-	#make sure we don't start cron twice at boot
+	# enable cron, but only restart cron if it is currently running
+	# since we initialize this before cron, this will
+	# make sure we don't start cron twice at boot
 	/etc/init.d/cron enable
 	cron_active=$(ps | grep "crond" | grep -v "grep" )
 	if [ -n "$cron_active" ]; then
@@ -353,7 +366,6 @@ load_all_config_sections()
 	local section_type="$2"
 
 	all_config_sections=""
-	section_order=""
 	config_cb()
 	{
 		if [ -n "$2" ] || [ -n "$1" ]; then
@@ -382,7 +394,7 @@ initialize_quota_qos()
 {
 	cleanup_old_quota_qos
 
-	#speeds should be in kbyte/sec, units should NOT be present in config file (unit processing should be done by front-end)
+	# speeds should be in kbyte/sec, units should NOT be present in config file (unit processing should be done by front-end)
 	quota_sections=$(load_all_config_sections "firewall" "quota")
 	upload_speeds=""
 	download_speeds=""
@@ -398,12 +410,12 @@ initialize_quota_qos()
 		fi
 	done
 
-	#echo "upload_speeds = $upload_speeds"
+	# echo "upload_speeds = $upload_speeds"
 
 	unique_up=$( printf "%d\n" $upload_speeds 2>/dev/null | sort -u -n)
 	unique_down=$( printf "%d\n" $download_speeds 2>/dev/null | sort -u -n)
 
-	#echo "unique_up = $unique_up"
+	# echo "unique_up = $unique_up"
 
 	num_up_bands=1
 	num_down_bands=1
@@ -414,8 +426,8 @@ initialize_quota_qos()
 		num_down_bands=$((1 + $(printf "%d\n" $download_speeds 2>/dev/null | sort -u -n |  wc -l) ))
 	fi
 
-	#echo "num_up_bands=$num_up_bands"
-	#echo "num_down_bands=$num_down_bands"
+	# echo "num_up_bands=$num_up_bands"
+	# echo "num_down_bands=$num_down_bands"
 
 	if [ -n "$wan_if" ] && [ $num_up_bands -gt 1 ] && [ $num_down_bands -gt 1 ]; then
 		insmod sch_prio  >/dev/null 2>&1
@@ -428,7 +440,7 @@ initialize_quota_qos()
 		insmod imq numdevs=1 hook_chains="INPUT,FORWARD" hook_tables="mangle,mangle" >/dev/null 2>&1
 		ip link set imq0 up
 
-		#egress/upload
+		# egress/upload
 		tc qdisc del dev $wan_if root >/dev/null 2>&1
 		tc qdisc add dev $wan_if handle 1:0 root prio bands $num_up_bands priomap 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 		cur_band=2
@@ -441,7 +453,7 @@ initialize_quota_qos()
 			cur_band=$(($cur_band+1))
 		done
 
-		#ingress/download
+		# ingress/download
 		tc qdisc del dev imq0 root >/dev/null 2>&1
 		tc qdisc add dev imq0 handle 1:0 root prio bands $num_down_bands priomap 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 		cur_band=2
@@ -456,8 +468,8 @@ initialize_quota_qos()
 
 		iptables -t mangle -I ingress_quotas -i $wan_if -j IMQ --todev 0
 
-		#tc -s qdisc show dev $wan_if
-		#tc -s qdisc show dev imq0
+		# tc -s qdisc show dev $wan_if
+		# tc -s qdisc show dev imq0
 	fi
 }
 
@@ -549,28 +561,31 @@ isolate_guest_networks()
 {
 	ebtables -t filter -F FORWARD
 	ebtables -t filter -F INPUT
-	local guest_macs=$( get_guest_macs )
+	local guest_macs
+	guest_macs=$( get_guest_macs )
 	if [ -n "$guest_macs" ]; then
-		local lanifs=`brctl show br-lan 2>/dev/null | awk ' $NF !~ /interfaces/ { print $NF } '`
+		local lanifs
 		local lif
+		local lan_ip
 
-		local lan_ip=$(uci -p /tmp/state get network.lan.ipaddr)
+		lanifs=$(brctl show br-lan 2>/dev/null | awk ' $NF !~ /interfaces/ { print $NF } ')
+		network_get_ipaddr lan_ip lan
 
 		for lif in $lanifs ; do
 			for gmac in $guest_macs ; do
-				local is_guest=$(ifconfig "$lif"	2>/dev/null | grep -i "$gmac")
+				local is_guest
+				is_guest=$(ifconfig "$lif" 2>/dev/null | grep -i "$gmac")
 				if [ -n "$is_guest" ]; then
 					echo "$lif with mac $gmac is wireless guest"
 
-					#Allow access to WAN but not other LAN hosts for anyone on guest network
+					# Allow access to WAN but not other LAN hosts for anyone on guest network
 					ebtables -t filter -A FORWARD -i "$lif" --logical-out br-lan -j DROP
 
-					#Only allow DHCP/DNS access to router for anyone on guest network
+					# Only allow DHCP/DNS access to router for anyone on guest network
 					ebtables -t filter -A INPUT -i "$lif" -p ARP -j ACCEPT
 					ebtables -t filter -A INPUT -i "$lif" -p IPV4 --ip-protocol UDP --ip-destination-port 53 -j ACCEPT
 					ebtables -t filter -A INPUT -i "$lif" -p IPV4 --ip-protocol UDP --ip-destination-port 67 -j ACCEPT
 					ebtables -t filter -A INPUT -i "$lif" -p IPV4 --ip-destination $lan_ip -j DROP
-
 				fi
 			done
 		done

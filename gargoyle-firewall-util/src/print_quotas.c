@@ -29,6 +29,8 @@
 #define malloc safe_malloc
 #define strdup safe_strdup
 
+#define CONFIG_NAME "firewall"
+
 list* get_all_sections_of_type(struct uci_context *ctx, char* package, char* section_type);
 void  backup_quota(char* quota_id, char* quota_backup_dir);
 char* get_uci_option(struct uci_context* ctx,char* package_name, char* section_name, char* option_name);
@@ -37,7 +39,7 @@ char* get_option_value_string(struct uci_option* uopt);
 int main(void)
 {
 	struct uci_context *ctx = uci_alloc_context();
-	list* quota_sections = get_all_sections_of_type(ctx, "firewall", "quota");
+	list* quota_sections = get_all_sections_of_type(ctx, CONFIG_NAME, "quota");
 	unlock_bandwidth_semaphore_on_exit();
 
 	/* for each ip have uint64_t[6], */
@@ -51,8 +53,8 @@ int main(void)
 		char* next_quota = shift_list(quota_sections);
 
 		/* base id for quota is the ip associated with it*/
-		char *id = get_uci_option(ctx, "firewall", next_quota, "id");
-		char* ip = get_uci_option(ctx, "firewall", next_quota, "ip");
+		char *id = get_uci_option(ctx, CONFIG_NAME, next_quota, "id");
+		char* ip = get_uci_option(ctx, CONFIG_NAME, next_quota, "ip");
 		if(ip == NULL)
 		{
 			ip = strdup("ALL");
@@ -84,13 +86,14 @@ int main(void)
 		ip_to_limits = ip_to_limits == NULL ? initialize_string_map(1) : ip_to_limits;
 		set_string_map_element(id_ip_to_limits, id, ip_to_limits);
 
-		char* offpeak_hours         = get_uci_option(ctx, "firewall", next_quota, "offpeak_hours");
-		char* offpeak_weekdays      = get_uci_option(ctx, "firewall", next_quota, "offpeak_weekdays");
-		char* offpeak_weekly_ranges = get_uci_option(ctx, "firewall", next_quota, "offpeak_weekly_ranges");
-		char* onpeak_hours          = get_uci_option(ctx, "firewall", next_quota, "onpeak_hours");
-		char* onpeak_weekdays       = get_uci_option(ctx, "firewall", next_quota, "onpeak_weekdays");
-		char* onpeak_weekly_ranges  = get_uci_option(ctx, "firewall", next_quota, "onpeak_weekly_ranges");
-		if(offpeak_hours != NULL || offpeak_weekdays != NULL || offpeak_weekly_ranges != NULL || onpeak_hours != NULL || onpeak_weekdays != NULL || onpeak_weekly_ranges != NULL)
+		char* offpeak_hours         = get_uci_option(ctx, CONFIG_NAME, next_quota, "offpeak_hours");
+		char* offpeak_weekdays      = get_uci_option(ctx, CONFIG_NAME, next_quota, "offpeak_weekdays");
+		char* offpeak_weekly_ranges = get_uci_option(ctx, CONFIG_NAME, next_quota, "offpeak_weekly_ranges");
+		char* onpeak_hours          = get_uci_option(ctx, CONFIG_NAME, next_quota, "onpeak_hours");
+		char* onpeak_weekdays       = get_uci_option(ctx, CONFIG_NAME, next_quota, "onpeak_weekdays");
+		char* onpeak_weekly_ranges  = get_uci_option(ctx, CONFIG_NAME, next_quota, "onpeak_weekly_ranges");
+		if(offpeak_hours != NULL || offpeak_weekdays != NULL || offpeak_weekly_ranges != NULL ||
+			onpeak_hours != NULL || onpeak_weekdays != NULL || onpeak_weekly_ranges != NULL)
 		{
 			unsigned char is_off_peak = (offpeak_hours != NULL || offpeak_weekdays != NULL || offpeak_weekly_ranges != NULL) ? 1 : 0;
 			char* hours_var = is_off_peak ? offpeak_hours : onpeak_hours;
@@ -106,7 +109,8 @@ int main(void)
 			hours_var = hours_var == NULL ? strdup("") : hours_var;
 			weekdays_var = weekdays_var == NULL ? strdup("") : weekdays_var;
 			weekly_ranges_var = weekly_ranges_var == NULL ? strdup("") : weekly_ranges_var;
-			push_list(id_to_time, dynamic_strcat(11, "quotaTimes[\"", id, "\"] = [\"", hours_var, "\", \"", weekdays_var, "\", \"", weekly_ranges_var ,"\", \"", active_var, "\"];"));
+			push_list(id_to_time, dynamic_strcat(11, "quotaTimes[\"", id, "\"] = [\"", hours_var, "\", \"",
+				weekdays_var, "\", \"", weekly_ranges_var ,"\", \"", active_var, "\"];"));
 
 			free(hours_var);
 			free(weekdays_var);
@@ -124,7 +128,7 @@ int main(void)
 		int type_index;
 		for(type_index=0; type_index < 3; type_index++)
 		{
-			char* limit = get_uci_option(ctx, "firewall", next_quota, types[type_index]);
+			char* limit = get_uci_option(ctx, CONFIG_NAME, next_quota, types[type_index]);
 			if(limit != NULL)
 			{
 				char* type_id = dynamic_strcat(2, id, postfixes[type_index]);

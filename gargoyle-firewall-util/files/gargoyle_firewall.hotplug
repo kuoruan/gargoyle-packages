@@ -1,8 +1,15 @@
 #!/bin/sh
 
-if [ "$INTERFACE" = "wan" ]; then
+[ "$ACTION" = "ifup" ] || [ "$ACTION" = "ifdown" ] || exit 0
 
-	. /usr/lib/gargoyle_firewall_util/gargoyle_firewall_util.sh
+. /lib/functions/network.sh
+
+wan_net_name=
+network_find_wan wan_net_name
+
+if [ "$INTERFACE" = "$wan_net_name" ]; then
+
+	. /usr/lib/gargoyle/gargoyle_firewall_util.sh
 
 	if [ "$ACTION" = "ifup" ]; then
 
@@ -26,7 +33,6 @@ if [ "$INTERFACE" = "wan" ]; then
 			backup_quotas
 		fi
 	fi
-
 fi
 
 if [ "$INTERFACE" = "lan" ]; then

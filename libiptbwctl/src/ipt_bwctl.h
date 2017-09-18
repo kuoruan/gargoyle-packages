@@ -82,7 +82,7 @@ typedef struct ip_bw_kernel_data_item_struct
 	uint64_t first_end;
 	uint64_t last_end;
 	uint64_t ipbw_data[0];
-}ip_bw_kernel_data_item;
+} ip_bw_kernel_data_item;
 
 typedef struct
 {

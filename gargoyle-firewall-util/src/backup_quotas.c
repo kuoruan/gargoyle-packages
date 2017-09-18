@@ -29,6 +29,8 @@
 #define malloc safe_malloc
 #define strdup safe_strdup
 
+#define CONFIG_NAME "firewall"
+
 list* get_all_sections_of_type(struct uci_context *ctx, char* package, char* section_type);
 void  backup_quota(char* quota_id, char* quota_backup_dir);
 char* get_uci_option(struct uci_context* ctx,char* package_name, char* section_name, char* option_name);
@@ -37,13 +39,13 @@ char* get_option_value_string(struct uci_option* uopt);
 int main(void)
 {
 	struct uci_context *ctx = uci_alloc_context();
-	list* quota_sections = get_all_sections_of_type(ctx, "firewall", "quota");
+	list* quota_sections = get_all_sections_of_type(ctx, CONFIG_NAME, "quota");
 	system("mkdir -p /usr/data/quotas");
 	unlock_bandwidth_semaphore_on_exit();
 	while(quota_sections->length > 0)
 	{
 		char* next_quota = shift_list(quota_sections);
-		char* ignore_backup = get_uci_option(ctx, "firewall", next_quota, "ignore_backup_at_next_restore");
+		char* ignore_backup = get_uci_option(ctx, CONFIG_NAME, next_quota, "ignore_backup_at_next_restore");
 		int do_backup = 1;
 		if(ignore_backup != NULL)
 		{
@@ -56,11 +58,11 @@ int main(void)
 
 		if(do_backup)
 		{
-			//do backup
+			// do backup
 
-			/* base id for quota is the ip associated with it*/
-			char* backup_id = get_uci_option(ctx, "firewall", next_quota, "id");
-			char* ip = get_uci_option(ctx, "firewall", next_quota, "ip");
+			// base id for quota is the ip associated with it
+			char* backup_id = get_uci_option(ctx, CONFIG_NAME, next_quota, "id");
+			char* ip = get_uci_option(ctx, CONFIG_NAME, next_quota, "ip");
 			if(ip == NULL)
 			{
 				ip = strdup("ALL");
@@ -85,7 +87,7 @@ int main(void)
 			int type_index;
 			for(type_index=0; type_index < 3; type_index++)
 			{
-				char* defined = get_uci_option(ctx, "firewall", next_quota, types[type_index]);
+				char* defined = get_uci_option(ctx, CONFIG_NAME, next_quota, types[type_index]);
 				if(defined != NULL)
 				{
 					char* type_id = dynamic_strcat(2, backup_id, postfixes[type_index]);

@@ -43,13 +43,21 @@ define Build/Compile
 endef
 
 define Package/gargoyle-firewall-util/postinst
-	#!/bin/sh
-	included=$$(cat $${IPKG_INSTROOT}/etc/config/firewall | grep 'gargoyle_additions.firewall'  )
-	if [ -z "$$included" ] ; then printf "config include\n\toption type script\n\toption path /usr/lib/gargoyle_firewall_util/gargoyle_additions.firewall\n\toption family IPv4\n\toption reload 1\n\n" >> $${IPKG_INSTROOT}/etc/config/firewall ; fi
+#!/bin/sh
+if ( grep -q 'gargoyle_additions.firewall' $${IPKG_INSTROOT}/etc/config/firewall ); then
+	uci -q batch <<-EOF
+		add firewall include
+		rename firewall.@include[-1]="gargoyle"
+		set firewall.gargoyle.type=script
+		set firewall.gargoyle.path=/usr/lib/gargoyle/gargoyle_additions.firewall
+		set firewall.gargoyle.family=IPv4
+		set firewall.gargoyle.reload=1
+	EOF
+fi
 endef
 
 define Package/gargoyle-firewall-util/install
-	$(INSTALL_DIR) $(1)/usr/lib/gargoyle_firewall_util/
+	$(INSTALL_DIR) $(1)/usr/lib/gargoyle/
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface/
 	$(INSTALL_DIR) $(1)/usr/bin/
 	$(INSTALL_DIR) $(1)/etc/init.d/
@@ -61,8 +69,8 @@ define Package/gargoyle-firewall-util/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/restore_quotas $(1)/usr/bin/restore_quotas
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/print_quotas $(1)/usr/bin/print_quotas
 
-	$(INSTALL_BIN) ./files/gargoyle_firewall_util.sh $(1)/usr/lib/gargoyle_firewall_util/gargoyle_firewall_util.sh
-	$(INSTALL_BIN) ./files/gargoyle_additions.firewall $(1)/usr/lib/gargoyle_firewall_util/gargoyle_additions.firewall
+	$(INSTALL_BIN) ./files/gargoyle_firewall_util.sh $(1)/usr/lib/gargoyle/gargoyle_firewall_util.sh
+	$(INSTALL_BIN) ./files/gargoyle_additions.firewall $(1)/usr/lib/gargoyle/gargoyle_additions.firewall
 	$(INSTALL_BIN) ./files/gargoyle_firewall.hotplug $(1)/etc/hotplug.d/iface/21-gargoyle_firewall
 	$(INSTALL_BIN) ./files/set_kernel_timezone.init $(1)/etc/init.d/set_kernel_timezone
 	$(INSTALL_BIN) ./files/modemaccess.pppoe $(1)/etc/ppp/ip-up.d/modemaccess.sh

@@ -49,7 +49,8 @@ int main(int argc, char **argv)
 			{
 				if(strcmp(line_pieces[1], delete_chain) == 0)
 				{
-					char* delete_command = dynamic_strcat(7, "iptables -t ", table, " -D ", current_chain, " ", line_pieces[0], " 2>/dev/null");
+					char* delete_command = dynamic_strcat(7, "iptables -t ", table, " -D ",
+						current_chain, " ", line_pieces[0], " 2>/dev/null");
 					push_list(delete_commands, delete_command);
 				}
 			}

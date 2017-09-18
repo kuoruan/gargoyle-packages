@@ -170,8 +170,6 @@ static int unlock_sem(int sid)
 	return success;
 }
 
-
-
 static int lock(unsigned long max_wait_milliseconds)
 {
 	int locked = 0;
@@ -962,7 +960,7 @@ ip_bw* load_usage_from_file(char* in_file_path, unsigned long* num_ips, time_t* 
 	if(in_file != NULL)
 	{
 		unsigned long num_data_parts = 0;
-		char* file_data = read_entire_file(in_file, 4086, &num_data_parts);
+		char* file_data = (char *)read_entire_file(in_file, 4086, &num_data_parts);
 		fclose(in_file);
 		char whitespace[] =  {'\n', '\r', '\t', ' '};
 		char** data_parts = split_on_separators(file_data, whitespace, 4, -1, 0, &num_data_parts);
@@ -1257,7 +1255,6 @@ int get_minutes_west(time_t now)
 
 	return minuteswest;
 }
-
 
 void set_kernel_timezone(void)
 {

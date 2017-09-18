@@ -31,7 +31,7 @@ case "$1" in
 	;;
 esac
 
-#if we get here then udhcp did not call us.  Must be from pppd or /usr/lib/gargoyle_firewall_util
+#if we get here then udhcp did not call us.  Must be from pppd or /usr/lib/gargoyle
 
 #configure the ethernet interface.
 if [ -n "$ROUTER_IP" ]; then
