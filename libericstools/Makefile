@@ -48,6 +48,7 @@ endef
 
 define Package/libericstools/install
 	$(INSTALL_DIR) $(1)/usr/lib
+
 	$(CP) $(PKG_BUILD_DIR)/*.so* $(1)/usr/lib/
 endef
 

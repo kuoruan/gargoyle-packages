@@ -4,7 +4,7 @@ PKG_NAME:=gargoyle-firewall-util
 PKG_VERSION:=1.0.0
 PKG_RELEASE:=1
 
-PKG_BUILD_DIR := $(BUILD_DIR)/$(PKG_NAME)
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -26,7 +26,6 @@ define Package/gargoyle-firewall-util/description
 endef
 
 define Build/Prepare
-	echo PACKAGE BUILD DIR = $(PACKAGE_BUILD_DIR)
 	mkdir -p $(PKG_BUILD_DIR)
 	$(CP) ./src/* $(PKG_BUILD_DIR)/
 endef

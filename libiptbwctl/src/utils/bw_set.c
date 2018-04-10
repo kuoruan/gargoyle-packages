@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-		fprintf(stdout, "Data set successfully\n\n");
+		fprintf(stderr, "Data set successfully\n\n");
 	}
 
 	if(in_file_path != NULL)

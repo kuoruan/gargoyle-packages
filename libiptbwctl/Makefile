@@ -12,7 +12,7 @@ PKG_NAME:=libiptbwctl
 PKG_VERSION:=1.0.0
 PKG_RELEASE:=1
 
-PKG_BUILD_DIR:=$(BUILD_DIR)/libiptbwctl
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -64,7 +64,9 @@ endef
 define Package/libiptbwctl/install
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(INSTALL_DIR) $(1)/usr/bin
+
 	$(CP) $(PKG_BUILD_DIR)/*.so* $(1)/usr/lib/
+
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/utils/bw_get $(1)/usr/bin/bw_get
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/utils/bw_set $(1)/usr/bin/bw_set
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/utils/bw_print_history_file $(1)/usr/bin/bw_print_history_file
